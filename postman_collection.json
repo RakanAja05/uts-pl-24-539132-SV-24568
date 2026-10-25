@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "name": "Plant Collection API",
-    "description": "Koleksi endpoint API untuk aplikasi Plant Collection (UTS Pemrograman Lanjut).\n\nVariabel:\n- `base_url` : Base URL API (default: http://localhost:8000/api)\n- `token`    : Bearer token yang diperoleh setelah login\n\nAlur penggunaan:\n1. Jalankan request **Login** → salin nilai `token` dari response.\n2. Set variabel `token` di Collection Variables.\n3. Jalankan endpoint Plant lainnya — Authorization header sudah otomatis terisi.",
+    "_postman_id": "b7e28941-8631-419b-a359-57ef51dbf992",
+    "name": "Plant Collection API - UTS Pemrograman Lanjut",
+    "description": "Koleksi Postman v2.1 resmi untuk pengujian API Plant Collection.\n\n### Fitur Utama Koleksi:\n1. **Autentikasi Otomatis**: Request `Login` menyimpan token ke variable `token` secara otomatis.\n2. **Dynamic Plant ID**: Request `Create Plant (201 Created)` menyimpan ID tanaman ke variable `plant_id` untuk digunakan pada request GET single, PUT update, dan DELETE.\n3. **Pengujian Status Code Lengkap**:\n   - `200 OK`: Login, Get All, Get By ID, Update, Delete, Logout\n   - `201 Created`: Tambah data plant baru\n   - `401 Unauthorized`: Request endpoint protected tanpa menyertakan Bearer Token, atau kredensial salah\n   - `422 Unprocessable Entity`: Request tambah data plant dengan payload tidak valid / kosong\n\n### Variabel Lingkungan:\n- `base_url`: `http://localhost:8000/api` (direct FrankenPHP) atau `http://localhost/api` (via Nginx reverse proxy)\n- `token`: Bearer token JWT/Sanctum\n- `plant_id`: ID tanaman hasil pembuatan data",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -15,26 +15,34 @@
       "key": "token",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "plant_id",
+      "value": "1",
+      "type": "string"
     }
   ],
   "item": [
     {
-      "name": "Auth",
+      "name": "1. Authentication",
       "item": [
         {
-          "name": "Login",
+          "name": "Login - Sukses (200 OK & Save Token)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "// Otomatis simpan token ke variabel koleksi setelah login berhasil",
-                  "if (pm.response.code === 200) {",
-                  "    const json = pm.response.json();",
-                  "    pm.collectionVariables.set('token', json.token);",
-                  "    pm.test('Token tersimpan', () => pm.expect(json.token).to.be.a('string'));",
-                  "}",
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains bearer token\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('token');",
+                  "    pm.expect(jsonData.token).to.be.a('string');",
+                  "    pm.collectionVariables.set('token', jsonData.token);",
+                  "});"
                 ],
                 "type": "text/javascript"
               }
@@ -43,139 +51,465 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept",       "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"password\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/login",
               "host": ["{{base_url}}"],
               "path": ["login"]
             },
-            "description": "Login dan dapatkan Bearer token. Token otomatis disimpan ke variabel `token`."
+            "description": "Login menggunakan akun default seeder (admin@example.com / password). Token Sanctum otomatis disimpan ke variable `token`."
           },
           "response": []
         },
         {
-          "name": "Logout",
+          "name": "Login - Gagal Kredensial Salah (401 Unauthorized)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 401 Unauthorized\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"Error message is returned\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Email atau password salah\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept",        "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"wrong.user@example.com\",\n    \"password\": \"invalidpassword\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            },
+            "description": "Pengujian login dengan email atau password salah, memastikan sistem merespons dengan HTTP 401 Unauthorized."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Logout message confirmed\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/logout",
               "host": ["{{base_url}}"],
               "path": ["logout"]
             },
-            "description": "Invalidasi token saat ini. Membutuhkan Bearer token yang valid."
+            "description": "Mencabut token autentikasi pengguna saat ini."
           },
           "response": []
         }
       ]
     },
     {
-      "name": "Plants",
+      "name": "2. Error Cases (Skenario Error Soal UTS)",
       "item": [
         {
-          "name": "Get All Plants",
+          "name": "Akses Protected Endpoint Tanpa Token (401 Unauthorized)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 401 Unauthorized\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"Response indicates unauthenticated\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Unauthenticated.\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept",        "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
             ],
             "url": {
               "raw": "{{base_url}}/plants",
               "host": ["{{base_url}}"],
               "path": ["plants"]
             },
-            "description": "Mengambil seluruh daftar tanaman milik pengguna yang sedang login."
+            "description": "Mengakses endpoint CRUD Plant tanpa menyertakan header Authorization: Bearer. Memenuhi syarat pengujian 401 Unauthorized."
           },
           "response": []
         },
         {
-          "name": "Get Plant by ID",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Accept",        "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
-            ],
-            "url": {
-              "raw": "{{base_url}}/plants/1",
-              "host": ["{{base_url}}"],
-              "path": ["plants", "1"]
-            },
-            "description": "Mengambil detail satu tanaman berdasarkan ID."
-          },
-          "response": []
-        },
-        {
-          "name": "Create Plant",
+          "name": "Create Plant Validasi Gagal (422 Unprocessable Entity)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 422 Unprocessable Entity\", function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});",
+                  "",
+                  "pm.test(\"Validation error structure returned\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('errors');",
+                  "    pm.expect(jsonData.errors).to.have.property('name');",
+                  "    pm.expect(jsonData.errors).to.have.property('species');",
+                  "    pm.expect(jsonData.errors).to.have.property('watering_interval_days');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept",       "value": "application/json" },
-              { "key": "Authorization","value": "Bearer {{token}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Monstera Deliciosa\",\n    \"species\": \"Monstera deliciosa\",\n    \"watering_interval_days\": 7,\n    \"notes\": \"Letakkan di tempat yang terang tanpa sinar matahari langsung.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n    \"notes\": \"Hanya notes tanpa field wajib name, species, dan watering_interval_days\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/plants",
               "host": ["{{base_url}}"],
               "path": ["plants"]
             },
-            "description": "Membuat data tanaman baru. Field `notes` bersifat opsional.\n\nValidasi:\n- `name`: wajib, string, maks 255 karakter\n- `species`: wajib, string, maks 255 karakter\n- `watering_interval_days`: wajib, integer, minimal 1\n- `notes`: opsional, string"
+            "description": "Mengirim data kosong / tidak lengkap ke POST /api/plants. Memenuhi syarat pengujian status 422 Unprocessable Entity."
           },
           "response": []
-        },
+        }
+      ]
+    },
+    {
+      "name": "3. Plant CRUD",
+      "item": [
         {
-          "name": "Update Plant",
+          "name": "Create Plant - Tambah Data (201 Created & Save plant_id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Plant created with valid ID\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.name).to.eql(\"Monstera Deliciosa\");",
+                  "    pm.expect(jsonData.species).to.eql(\"Monstera deliciosa\");",
+                  "    pm.collectionVariables.set('plant_id', jsonData.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
-            "method": "PUT",
+            "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept",       "value": "application/json" },
-              { "key": "Authorization","value": "Bearer {{token}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Monstera Deliciosa (Updated)\",\n    \"species\": \"Monstera deliciosa\",\n    \"watering_interval_days\": 5,\n    \"notes\": \"Catatan diperbarui.\"\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n    \"name\": \"Monstera Deliciosa\",\n    \"species\": \"Monstera deliciosa\",\n    \"watering_interval_days\": 7,\n    \"notes\": \"Tanaman hias tropis berdaun lebar dan berlubang alami. Siram 7 hari sekali.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
-              "raw": "{{base_url}}/plants/1",
+              "raw": "{{base_url}}/plants",
               "host": ["{{base_url}}"],
-              "path": ["plants", "1"]
+              "path": ["plants"]
             },
-            "description": "Memperbarui seluruh data tanaman (PUT). Ganti angka `1` di URL dengan ID tanaman yang ingin diupdate."
+            "description": "Menambahkan data tanaman baru dengan payload lengkap dan valid. Mengembalikan status 201 Created dan menyimpan `id` ke variable `plant_id`."
           },
           "response": []
         },
         {
-          "name": "Delete Plant",
+          "name": "Get All Plants (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array of plants\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plants",
+              "host": ["{{base_url}}"],
+              "path": ["plants"]
+            },
+            "description": "Mengambil seluruh daftar tanaman yang tersimpan di database."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Plant by ID (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Plant details match plant_id\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    var expectedId = pm.collectionVariables.get('plant_id');",
+                  "    pm.expect(String(jsonData.id)).to.eql(String(expectedId));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plants/{{plant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["plants", "{{plant_id}}"]
+            },
+            "description": "Mengambil detail satu data tanaman berdasarkan variable `{{plant_id}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Plant (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Plant data updated successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.name).to.eql(\"Monstera Deliciosa (Updated via Postman)\");",
+                  "    pm.expect(jsonData.watering_interval_days).to.eql(10);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Monstera Deliciosa (Updated via Postman)\",\n    \"species\": \"Monstera deliciosa\",\n    \"watering_interval_days\": 10,\n    \"notes\": \"Jadwal penyiraman diubah menjadi 10 hari sekali pada musim penghujan.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/plants/{{plant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["plants", "{{plant_id}}"]
+            },
+            "description": "Memperbarui data tanaman yang ditunjuk oleh `{{plant_id}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Plant (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Plant deleted confirmation message\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Data dihapus\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "DELETE",
             "header": [
-              { "key": "Accept",        "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{token}}" }
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
             ],
             "url": {
-              "raw": "{{base_url}}/plants/1",
+              "raw": "{{base_url}}/plants/{{plant_id}}",
               "host": ["{{base_url}}"],
-              "path": ["plants", "1"]
+              "path": ["plants", "{{plant_id}}"]
             },
-            "description": "Menghapus tanaman berdasarkan ID. Ganti angka `1` di URL dengan ID tanaman yang ingin dihapus."
+            "description": "Menghapus data tanaman yang ditunjuk oleh `{{plant_id}}`."
           },
           "response": []
         }
