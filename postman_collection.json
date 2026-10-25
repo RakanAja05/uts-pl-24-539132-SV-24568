@@ -1,0 +1,185 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Plant Collection API",
+    "description": "Koleksi endpoint API untuk aplikasi Plant Collection (UTS Pemrograman Lanjut).\n\nVariabel:\n- `base_url` : Base URL API (default: http://localhost:8000/api)\n- `token`    : Bearer token yang diperoleh setelah login\n\nAlur penggunaan:\n1. Jalankan request **Login** → salin nilai `token` dari response.\n2. Set variabel `token` di Collection Variables.\n3. Jalankan endpoint Plant lainnya — Authorization header sudah otomatis terisi.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Otomatis simpan token ke variabel koleksi setelah login berhasil",
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.collectionVariables.set('token', json.token);",
+                  "    pm.test('Token tersimpan', () => pm.expect(json.token).to.be.a('string'));",
+                  "}",
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept",       "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"password\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            },
+            "description": "Login dan dapatkan Bearer token. Token otomatis disimpan ke variabel `token`."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept",        "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/logout",
+              "host": ["{{base_url}}"],
+              "path": ["logout"]
+            },
+            "description": "Invalidasi token saat ini. Membutuhkan Bearer token yang valid."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Plants",
+      "item": [
+        {
+          "name": "Get All Plants",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept",        "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plants",
+              "host": ["{{base_url}}"],
+              "path": ["plants"]
+            },
+            "description": "Mengambil seluruh daftar tanaman milik pengguna yang sedang login."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Plant by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept",        "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plants/1",
+              "host": ["{{base_url}}"],
+              "path": ["plants", "1"]
+            },
+            "description": "Mengambil detail satu tanaman berdasarkan ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Plant",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept",       "value": "application/json" },
+              { "key": "Authorization","value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Monstera Deliciosa\",\n    \"species\": \"Monstera deliciosa\",\n    \"watering_interval_days\": 7,\n    \"notes\": \"Letakkan di tempat yang terang tanpa sinar matahari langsung.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/plants",
+              "host": ["{{base_url}}"],
+              "path": ["plants"]
+            },
+            "description": "Membuat data tanaman baru. Field `notes` bersifat opsional.\n\nValidasi:\n- `name`: wajib, string, maks 255 karakter\n- `species`: wajib, string, maks 255 karakter\n- `watering_interval_days`: wajib, integer, minimal 1\n- `notes`: opsional, string"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Plant",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept",       "value": "application/json" },
+              { "key": "Authorization","value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Monstera Deliciosa (Updated)\",\n    \"species\": \"Monstera deliciosa\",\n    \"watering_interval_days\": 5,\n    \"notes\": \"Catatan diperbarui.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/plants/1",
+              "host": ["{{base_url}}"],
+              "path": ["plants", "1"]
+            },
+            "description": "Memperbarui seluruh data tanaman (PUT). Ganti angka `1` di URL dengan ID tanaman yang ingin diupdate."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Plant",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept",        "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plants/1",
+              "host": ["{{base_url}}"],
+              "path": ["plants", "1"]
+            },
+            "description": "Menghapus tanaman berdasarkan ID. Ganti angka `1` di URL dengan ID tanaman yang ingin dihapus."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

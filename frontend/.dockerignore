@@ -1,0 +1,29 @@
+# Build output (never commit or include in image)
+dist/
+
+# Dependencies (reinstalled fresh inside the builder stage)
+node_modules/
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.gitignore
+
+# Editor & OS
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Docker files (not needed inside container)
+Dockerfile
+.dockerignore
+
+# CI
+.github/
+
+# Docs
+README.md
