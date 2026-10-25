@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b7e28941-8631-419b-a359-57ef51dbf992",
     "name": "Plant Collection API - UTS Pemrograman Lanjut",
-    "description": "Koleksi Postman v2.1 resmi untuk pengujian API Plant Collection.\n\n### Fitur Utama Koleksi:\n1. **Autentikasi Otomatis**: Request `Login` menyimpan token ke variable `token` secara otomatis.\n2. **Dynamic Plant ID**: Request `Create Plant (201 Created)` menyimpan ID tanaman ke variable `plant_id` untuk digunakan pada request GET single, PUT update, dan DELETE.\n3. **Pengujian Status Code Lengkap**:\n   - `200 OK`: Login, Get All, Get By ID, Update, Delete, Logout\n   - `201 Created`: Tambah data plant baru\n   - `401 Unauthorized`: Request endpoint protected tanpa menyertakan Bearer Token, atau kredensial salah\n   - `422 Unprocessable Entity`: Request tambah data plant dengan payload tidak valid / kosong\n\n### Variabel Lingkungan:\n- `base_url`: `http://localhost:8000/api` (direct FrankenPHP) atau `http://localhost/api` (via Nginx reverse proxy)\n- `token`: Bearer token JWT/Sanctum\n- `plant_id`: ID tanaman hasil pembuatan data",
+    "description": "Koleksi Postman v2.1 komprehensif untuk pengujian API Plant Collection.\n\n### Fitur Utama Koleksi:\n1. **Autentikasi Otomatis**: Request `Login` menyimpan token ke variable `token` secara otomatis.\n2. **Dynamic Plant ID**: Request `Create Plant (201 Created)` menyimpan ID tanaman ke variable `plant_id` untuk digunakan pada request GET detail, PUT/PATCH update, dan DELETE.\n3. **Cakupan CRUD Lengkap (Create, Read, Update, Delete)**:\n   - `POST /plants` : Tambah data tanaman baru (Status 201 Created)\n   - `GET /plants` : Ambil seluruh daftar tanaman (Status 200 OK)\n   - `GET /plants/{id}` : Ambil detail tanaman tertentu berdasarkan ID (Status 200 OK)\n   - `PUT /plants/{id}` : Perbarui seluruh atribut tanaman (Status 200 OK)\n   - `PATCH /plants/{id}` : Perbarui tanaman via HTTP PATCH (Status 200 OK)\n   - `DELETE /plants/{id}` : Hapus data tanaman (Status 200 OK)\n4. **Skenario Error Lengkap**:\n   - `401 Unauthorized` : Akses tanpa token & akses dengan token tidak valid\n   - `422 Unprocessable Entity` : Validasi field kosong & tipe data tidak sesuai\n   - `404 Not Found` : Operasi GET/PUT/DELETE pada ID tanaman yang tidak ada di database\n\n### Variabel Koleksi:\n- `base_url`: `http://localhost:8000/api` (direct FrankenPHP) atau `http://localhost/api` (via Nginx reverse proxy)\n- `token`: Bearer token Sanctum hasil login\n- `plant_id`: ID tanaman yang otomatis diperbarui dari request Create",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -173,10 +173,313 @@
       ]
     },
     {
-      "name": "2. Error Cases (Skenario Error Soal UTS)",
+      "name": "2. Plant CRUD Operations (Siklus Penuh)",
       "item": [
         {
-          "name": "Akses Protected Endpoint Tanpa Token (401 Unauthorized)",
+          "name": "1. Create Plant - Tambah Data (201 Created & Auto-save plant_id)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Plant created with valid ID\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('id');",
+                  "    pm.expect(jsonData.name).to.eql(\"Monstera Deliciosa\");",
+                  "    pm.expect(jsonData.species).to.eql(\"Monstera deliciosa\");",
+                  "    pm.expect(jsonData.watering_interval_days).to.eql(7);",
+                  "    pm.collectionVariables.set('plant_id', jsonData.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Monstera Deliciosa\",\n    \"species\": \"Monstera deliciosa\",\n    \"watering_interval_days\": 7,\n    \"notes\": \"Tanaman hias tropis berdaun lebar dan berlubang alami. Siram 7 hari sekali.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/plants",
+              "host": ["{{base_url}}"],
+              "path": ["plants"]
+            },
+            "description": "CREATE: Menambahkan data tanaman baru. Mengembalikan status 201 Created dan secara otomatis menyimpan field `id` tanaman baru ke variable `{{plant_id}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Get All Plants - Tampilkan Semua Tanaman (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array of plants\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plants",
+              "host": ["{{base_url}}"],
+              "path": ["plants"]
+            },
+            "description": "READ (List): Mengambil seluruh daftar koleksi tanaman yang tersimpan."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Get Plant by ID - Tampilkan Detail Satu Tanaman (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Plant details match plant_id\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    var expectedId = pm.collectionVariables.get('plant_id');",
+                  "    pm.expect(String(jsonData.id)).to.eql(String(expectedId));",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.expect(jsonData).to.have.property('species');",
+                  "    pm.expect(jsonData).to.have.property('watering_interval_days');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plants/{{plant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["plants", "{{plant_id}}"]
+            },
+            "description": "READ (Detail): Mengambil informasi detail satu data tanaman spesifik berdasarkan parameter ID `{{plant_id}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Update Plant - PUT Full Update (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Plant data updated successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.name).to.eql(\"Monstera Deliciosa (Updated via PUT)\");",
+                  "    pm.expect(jsonData.watering_interval_days).to.eql(10);",
+                  "    pm.expect(jsonData.notes).to.eql(\"Jadwal penyiraman diubah menjadi 10 hari sekali pada musim penghujan.\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Monstera Deliciosa (Updated via PUT)\",\n    \"species\": \"Monstera deliciosa\",\n    \"watering_interval_days\": 10,\n    \"notes\": \"Jadwal penyiraman diubah menjadi 10 hari sekali pada musim penghujan.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/plants/{{plant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["plants", "{{plant_id}}"]
+            },
+            "description": "UPDATE (PUT): Memperbarui seluruh kolom data tanaman berdasarkan `{{plant_id}}`."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Update Plant - PATCH Method (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Plant patched successfully\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.name).to.eql(\"Monstera Deliciosa (Updated via PATCH)\");",
+                  "    pm.expect(jsonData.watering_interval_days).to.eql(12);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Monstera Deliciosa (Updated via PATCH)\",\n    \"species\": \"Monstera deliciosa\",\n    \"watering_interval_days\": 12,\n    \"notes\": \"Diperbarui menggunakan method HTTP PATCH.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/plants/{{plant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["plants", "{{plant_id}}"]
+            },
+            "description": "UPDATE (PATCH): Menguji pembaruan data menggunakan method HTTP PATCH yang disediakan route Laravel apiResource."
+          },
+          "response": []
+        },
+        {
+          "name": "6. Delete Plant - Hapus Data (200 OK)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Plant deleted confirmation message\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Data dihapus\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plants/{{plant_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["plants", "{{plant_id}}"]
+            },
+            "description": "DELETE: Menghapus data tanaman berdasarkan parameter `{{plant_id}}`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Negative & Error Cases (Pengujian Khusus)",
+      "item": [
+        {
+          "name": "401 Unauthorized - Akses Tanpa Token",
           "event": [
             {
               "listen": "test",
@@ -209,12 +512,54 @@
               "host": ["{{base_url}}"],
               "path": ["plants"]
             },
-            "description": "Mengakses endpoint CRUD Plant tanpa menyertakan header Authorization: Bearer. Memenuhi syarat pengujian 401 Unauthorized."
+            "description": "Mengakses endpoint CRUD protected tanpa menyertakan header Authorization Bearer token."
           },
           "response": []
         },
         {
-          "name": "Create Plant Validasi Gagal (422 Unprocessable Entity)",
+          "name": "401 Unauthorized - Token Tidak Valid",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 401 Unauthorized\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"Message confirms unauthenticated token\", function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData.message).to.eql(\"Unauthenticated.\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer token_palsu_yang_tidak_terdaftar_12345"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plants",
+              "host": ["{{base_url}}"],
+              "path": ["plants"]
+            },
+            "description": "Mengakses endpoint CRUD menggunakan format token yang tidak terdaftar di database personal access tokens."
+          },
+          "response": []
+        },
+        {
+          "name": "422 Unprocessable Entity - Tambah Data Body Kosong",
           "event": [
             {
               "listen": "test",
@@ -254,7 +599,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"notes\": \"Hanya notes tanpa field wajib name, species, dan watering_interval_days\"\n}",
+              "raw": "{}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -266,32 +611,24 @@
               "host": ["{{base_url}}"],
               "path": ["plants"]
             },
-            "description": "Mengirim data kosong / tidak lengkap ke POST /api/plants. Memenuhi syarat pengujian status 422 Unprocessable Entity."
+            "description": "Mengirim body JSON kosong `{}` ke endpoint create plant untuk memverifikasi validasi field required Laravel."
           },
           "response": []
-        }
-      ]
-    },
-    {
-      "name": "3. Plant CRUD",
-      "item": [
+        },
         {
-          "name": "Create Plant - Tambah Data (201 Created & Save plant_id)",
+          "name": "422 Unprocessable Entity - Interval Siram Bukan Angka",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Status code is 201 Created\", function () {",
-                  "    pm.response.to.have.status(201);",
+                  "pm.test(\"Status code is 422 Unprocessable Entity\", function () {",
+                  "    pm.response.to.have.status(422);",
                   "});",
                   "",
-                  "pm.test(\"Plant created with valid ID\", function () {",
+                  "pm.test(\"Validation error on integer rule\", function () {",
                   "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('id');",
-                  "    pm.expect(jsonData.name).to.eql(\"Monstera Deliciosa\");",
-                  "    pm.expect(jsonData.species).to.eql(\"Monstera deliciosa\");",
-                  "    pm.collectionVariables.set('plant_id', jsonData.id);",
+                  "    pm.expect(jsonData.errors).to.have.property('watering_interval_days');",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -316,7 +653,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Monstera Deliciosa\",\n    \"species\": \"Monstera deliciosa\",\n    \"watering_interval_days\": 7,\n    \"notes\": \"Tanaman hias tropis berdaun lebar dan berlubang alami. Siram 7 hari sekali.\"\n}",
+              "raw": "{\n    \"name\": \"Kaktus Mini\",\n    \"species\": \"Echinocactus\",\n    \"watering_interval_days\": \"tiga puluh hari\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -328,25 +665,19 @@
               "host": ["{{base_url}}"],
               "path": ["plants"]
             },
-            "description": "Menambahkan data tanaman baru dengan payload lengkap dan valid. Mengembalikan status 201 Created dan menyimpan `id` ke variable `plant_id`."
+            "description": "Mengirim string ke kolom `watering_interval_days` yang membutuhkan nilai integer minimal 1."
           },
           "response": []
         },
         {
-          "name": "Get All Plants (200 OK)",
+          "name": "404 Not Found - Get Detail ID Tidak Ada",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Status code is 200 OK\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Response is an array of plants\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.be.an('array');",
-                  "    pm.expect(jsonData.length).to.be.at.least(1);",
+                  "pm.test(\"Status code is 404 Not Found\", function () {",
+                  "    pm.response.to.have.status(404);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -366,71 +697,23 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/plants",
+              "raw": "{{base_url}}/plants/999999",
               "host": ["{{base_url}}"],
-              "path": ["plants"]
+              "path": ["plants", "999999"]
             },
-            "description": "Mengambil seluruh daftar tanaman yang tersimpan di database."
+            "description": "Mencoba mengambil detail tanaman dengan ID 999999 yang tidak ada di database."
           },
           "response": []
         },
         {
-          "name": "Get Plant by ID (200 OK)",
+          "name": "404 Not Found - Update ID Tidak Ada",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Status code is 200 OK\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Plant details match plant_id\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    var expectedId = pm.collectionVariables.get('plant_id');",
-                  "    pm.expect(String(jsonData.id)).to.eql(String(expectedId));",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{base_url}}/plants/{{plant_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["plants", "{{plant_id}}"]
-            },
-            "description": "Mengambil detail satu data tanaman berdasarkan variable `{{plant_id}}`."
-          },
-          "response": []
-        },
-        {
-          "name": "Update Plant (200 OK)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status code is 200 OK\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Plant data updated successfully\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData.name).to.eql(\"Monstera Deliciosa (Updated via Postman)\");",
-                  "    pm.expect(jsonData.watering_interval_days).to.eql(10);",
+                  "pm.test(\"Status code is 404 Not Found\", function () {",
+                  "    pm.response.to.have.status(404);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -455,7 +738,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"name\": \"Monstera Deliciosa (Updated via Postman)\",\n    \"species\": \"Monstera deliciosa\",\n    \"watering_interval_days\": 10,\n    \"notes\": \"Jadwal penyiraman diubah menjadi 10 hari sekali pada musim penghujan.\"\n}",
+              "raw": "{\n    \"name\": \"Tanaman Hantu\",\n    \"species\": \"Ghost plant\",\n    \"watering_interval_days\": 1\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -463,29 +746,23 @@
               }
             },
             "url": {
-              "raw": "{{base_url}}/plants/{{plant_id}}",
+              "raw": "{{base_url}}/plants/999999",
               "host": ["{{base_url}}"],
-              "path": ["plants", "{{plant_id}}"]
+              "path": ["plants", "999999"]
             },
-            "description": "Memperbarui data tanaman yang ditunjuk oleh `{{plant_id}}`."
+            "description": "Mencoba memperbarui tanaman dengan ID yang tidak ada di database."
           },
           "response": []
         },
         {
-          "name": "Delete Plant (200 OK)",
+          "name": "404 Not Found - Hapus ID Tidak Ada",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Status code is 200 OK\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "});",
-                  "",
-                  "pm.test(\"Plant deleted confirmation message\", function () {",
-                  "    var jsonData = pm.response.json();",
-                  "    pm.expect(jsonData).to.have.property('message');",
-                  "    pm.expect(jsonData.message).to.eql(\"Data dihapus\");",
+                  "pm.test(\"Status code is 404 Not Found\", function () {",
+                  "    pm.response.to.have.status(404);",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -505,11 +782,11 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/plants/{{plant_id}}",
+              "raw": "{{base_url}}/plants/999999",
               "host": ["{{base_url}}"],
-              "path": ["plants", "{{plant_id}}"]
+              "path": ["plants", "999999"]
             },
-            "description": "Menghapus data tanaman yang ditunjuk oleh `{{plant_id}}`."
+            "description": "Mencoba menghapus tanaman dengan ID yang tidak ada di database."
           },
           "response": []
         }
