@@ -3,7 +3,7 @@
 # Plant Collection — UTS Pemrograman Lanjut
 #
 # Jobs:
-#   1. test-backend   → PHP 8.3 + composer install + php artisan test
+#   1. test-backend   → PHP 8.4 + composer install + php artisan test
 #   2. build-frontend → Node 22 + npm ci + npm run build
 #   3. deploy         → Build & push Docker images to ghcr.io (main branch only)
 # =============================================================================
@@ -34,7 +34,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup PHP 8.3
+      - name: Setup PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.4"
@@ -50,31 +50,33 @@ jobs:
 
       - name: Install Composer dependencies
         working-directory: backend
-        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+        run: composer install --optimize-autoloader --no-interaction --prefer-dist
 
       - name: Copy .env.example → .env
         working-directory: backend
         run: cp .env.example .env
 
-      - name: Generate application key
+      - name: Configure application key
         working-directory: backend
-        # Use secret APP_KEY if configured in GitHub Secrets, otherwise generate one for testing
+        env:
+          SECRET_APP_KEY: ${{ secrets.APP_KEY }}
         run: |
-          if [ -n "${{ secrets.APP_KEY }}" ]; then
-            echo "APP_KEY=${{ secrets.APP_KEY }}" >> .env
+          if [ -n "$SECRET_APP_KEY" ]; then
+            php artisan key:generate --ansi
           else
             php artisan key:generate --ansi
           fi
 
       - name: Run PHPUnit test suite
         working-directory: backend
-        # phpunit.xml already configures: DB_CONNECTION=sqlite, DB_DATABASE=:memory:
-        # so no database service is required here
+        env:
+          APP_KEY: ${{ secrets.APP_KEY }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: php artisan test --no-ansi
 
   # ── Job 2: Frontend Build ──────────────────────────────────────────────────
   build-frontend:
-    name: "🏗️  Build Frontend (Node 22)"
+    name: "🏗️ Build Frontend (Node 22)"
     runs-on: ubuntu-latest
 
     steps:
@@ -94,7 +96,6 @@ jobs:
 
       - name: Build Vite/Vue for production
         working-directory: frontend
-        # VITE_API_URL=/api → relative path, proxied by Nginx to the backend service
         env:
           VITE_API_URL: /api
         run: npm run build
@@ -114,7 +115,6 @@ jobs:
     needs: [test-backend, build-frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
-    # Required permissions for GitHub Container Registry
     permissions:
       contents: read
       packages: write
@@ -123,7 +123,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── Login to GitHub Container Registry ────────────────────────────────
+      - name: Validate required GitHub Secrets (APP_KEY & DB_PASSWORD)
+        env:
+          APP_KEY: ${{ secrets.APP_KEY }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          if [ -z "$APP_KEY" ] || [ -z "$DB_PASSWORD" ]; then
+            echo "Warning: APP_KEY or DB_PASSWORD secret is not set in GitHub Secrets"
+          else
+            echo "GitHub Secrets (APP_KEY & DB_PASSWORD) successfully loaded."
+          fi
+
       - name: Login to GitHub Container Registry (ghcr.io)
         uses: docker/login-action@v3
         with:
@@ -131,12 +141,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── Set up Docker Buildx (for multi-platform & layer caching) ─────────
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ── Build & Push Backend Image ─────────────────────────────────────────
-      # Tag: ghcr.io/<owner>/<repo>-backend:<commit-sha>  (NOT "latest")
+      # Tag: ghcr.io/<owner>/<repo>-backend:<commit-sha> (NOT "latest")
       - name: Build and push backend Docker image
         uses: docker/build-push-action@v5
         with:
@@ -144,18 +152,13 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           tags: ${{ env.BACKEND_IMAGE }}:${{ github.sha }}
-          # Layer cache: reuse previous build layers from ghcr.io
           cache-from: type=registry,ref=${{ env.BACKEND_IMAGE }}:cache
           cache-to:   type=registry,ref=${{ env.BACKEND_IMAGE }}:cache,mode=max
-          # Secrets used as build-time labels / metadata (NOT baked into image layers)
-          # Runtime secrets (APP_KEY, DB_PASSWORD) are injected at container startup
-          # via docker-compose environment — see soal 4b.
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
-      # ── Build & Push Frontend Image ────────────────────────────────────────
-      # Tag: ghcr.io/<owner>/<repo>-frontend:<commit-sha>  (NOT "latest")
+      # Tag: ghcr.io/<owner>/<repo>-frontend:<commit-sha> (NOT "latest")
       - name: Build and push frontend Docker image
         uses: docker/build-push-action@v5
         with:
@@ -171,7 +174,6 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
 
-      # ── Summary ───────────────────────────────────────────────────────────
       - name: Print deployed image tags
         run: |
           echo "## 🚀 Docker Images Pushed" >> $GITHUB_STEP_SUMMARY
@@ -180,23 +182,3 @@ jobs:
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| backend  | \`${{ env.BACKEND_IMAGE }}:${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| frontend | \`${{ env.FRONTEND_IMAGE }}:${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "> Runtime secrets (APP_KEY, DB_PASSWORD) are injected via" >> $GITHUB_STEP_SUMMARY
-          echo "> GitHub Secrets → docker-compose environment variables." >> $GITHUB_STEP_SUMMARY
-
-      # ── Show how secrets are referenced (soal 4b) ──────────────────────────
-      # In a real CD step (e.g., SSH deploy), you would use secrets like this:
-      #
-      # - name: Deploy to server via SSH
-      #   uses: appleboy/ssh-action@v1
-      #   with:
-      #     host: ${{ secrets.DEPLOY_HOST }}
-      #     username: ${{ secrets.DEPLOY_USER }}
-      #     key: ${{ secrets.DEPLOY_SSH_KEY }}
-      #     script: |
-      #       cd /srv/plant-collection
-      #       echo "APP_KEY=${{ secrets.APP_KEY }}"         > .env
-      #       echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
-      #       echo "DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}" >> .env
-      #       docker compose pull
-      #       docker compose up -d
