@@ -37,7 +37,19 @@ return [
     |
     */
 
-    'guard' => ['web'],
+    'guard' => [],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Track Last Used At
+    |--------------------------------------------------------------------------
+    |
+    | Disable tracking last_used_at to avoid an extra UPDATE query on every
+    | authenticated API request.
+    |
+    */
+
+    'last_used_at' => env('SANCTUM_TRACK_LAST_USED_AT', false),
 
     /*
     |--------------------------------------------------------------------------

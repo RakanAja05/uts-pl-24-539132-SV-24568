@@ -15,12 +15,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Admin',
-            'email' => 'admin@example.com',
-            'password' => bcrypt('password'),
-        ]);
+        // firstOrCreate aman dijalankan berulang kali (idempotent).
+        // Dosen cukup jalankan `docker compose up -d --build` dan
+        // akun login ini langsung tersedia tanpa error duplicate entry.
+        User::firstOrCreate(
+            ['email' => 'admin@example.com'],
+            [
+                'name'     => 'Admin',
+                'password' => bcrypt('password'),
+            ]
+        );
     }
 }
