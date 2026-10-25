@@ -1,0 +1,106 @@
+# =============================================================================
+# docker-compose.yml — Plant Collection (root of monorepo)
+# Run with: docker compose up -d --build
+#
+# Services:
+#   db       → MySQL 8.0  (named volume, data persists across restarts)
+#   backend  → FrankenPHP / Laravel 13 (depends on db being healthy)
+#   frontend → Nginx 1.27 serving Vue SPA + /api reverse proxy to backend
+#
+# All credentials and secrets are read from the .env file in this directory.
+# =============================================================================
+
+services:
+
+  # ── Database ──────────────────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    container_name: plant_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE:      ${DB_DATABASE}
+      MYSQL_USER:          ${DB_USERNAME}
+      MYSQL_PASSWORD:      ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      # Named volume: data persists even after "docker compose down"
+      - db_data:/var/lib/mysql
+    networks:
+      - plant_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Backend (FrankenPHP + Laravel) ────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: plant_backend
+    restart: unless-stopped
+    environment:
+      # Application
+      APP_NAME:    "Plant Collection"
+      APP_ENV:     production
+      APP_KEY:     ${APP_KEY}
+      APP_DEBUG:   "false"
+      APP_URL:     ${APP_URL:-http://localhost}
+
+      # Database — uses the service name "db" as hostname (Docker internal DNS)
+      DB_CONNECTION: mysql
+      DB_HOST:       db
+      DB_PORT:       3306
+      DB_DATABASE:   ${DB_DATABASE}
+      DB_USERNAME:   ${DB_USERNAME}
+      DB_PASSWORD:   ${DB_PASSWORD}
+
+      # Performance (file drivers are faster than database drivers)
+      CACHE_STORE:      file
+      SESSION_DRIVER:   file
+      QUEUE_CONNECTION: sync
+
+      # Sanctum
+      SANCTUM_TRACK_LAST_USED_AT: "false"
+
+      # Logging
+      LOG_CHANNEL: stderr
+      LOG_LEVEL:   error
+    ports:
+      # Expose backend directly for local API testing / Postman
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - plant_network
+
+  # ── Frontend (Nginx + Vue SPA) ────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # /api is a relative path — browser sends to frontend's Nginx,
+        # which reverse-proxies to http://backend:8000 (Docker service name)
+        VITE_API_URL: /api
+    container_name: plant_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - plant_network
+
+# ── Named Volumes ─────────────────────────────────────────────────────────────
+volumes:
+  db_data:
+    driver: local
+
+# ── Networks ──────────────────────────────────────────────────────────────────
+networks:
+  plant_network:
+    driver: bridge
