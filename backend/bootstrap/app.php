@@ -19,6 +19,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(prepend: [
             \App\Http\Middleware\ForceJsonResponse::class,
         ]);
+
+        $middleware->append(\App\Http\Middleware\PrometheusMetricsMiddleware::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Always return JSON for API routes (no redirect to "login" route)

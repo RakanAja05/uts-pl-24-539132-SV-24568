@@ -1,0 +1,12 @@
+groups:
+  - name: plant_collection_alerts
+    rules:
+      - alert: LayananPlantCollectionMati
+        expr: up == 0
+        for: 15s
+        labels:
+          severity: critical
+          project: plant-collection
+        annotations:
+          summary: "Layanan {{ $labels.job }} ({{ $labels.instance }}) berhenti merespons (DOWN)"
+          description: "Target {{ $labels.job }} pada instance {{ $labels.instance }} telah berstatus DOWN (up == 0) selama lebih dari 15 detik. TINDAKAN PERTAMA: (1) Periksa status container dengan 'docker compose ps', (2) Cek 50 baris log error terakhir dengan 'docker compose logs --tail=50 {{ $labels.job }}', lalu (3) Hidupkan kembali layanan dengan 'docker compose start {{ $labels.job }}' atau 'docker compose up -d'."

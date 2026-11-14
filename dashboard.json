@@ -1,0 +1,261 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Berapa Persen Penggunaan CPU Tiap Container Aplikasi Saat Ini?",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "axisLabel": "CPU Usage (%)",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(sum by (name, id) (rate(container_cpu_usage_seconds_total{id=~\"/docker/[0-9a-f]{12,64}|/system.slice/docker-.*\"}[5m])) * 100, \"container\", \"$1\", \"id\", \"^(?:/docker/|.*/docker-)?([0-9a-f]{12}).*$\"), \"container\", \"plant_cadvisor\", \"id\", \".*/(06a80f25b7d0|a91e6a7ce2d8).*\"), \"container\", \"plant_frontend\", \"id\", \".*/453995ada206.*\"), \"container\", \"plant_backend\", \"id\", \".*/905b03d2749c.*\"), \"container\", \"plant_grafana\", \"id\", \".*/99402aa8be0c.*\"), \"container\", \"plant_prometheus\", \"id\", \".*/3bce829f4c46.*\"), \"container\", \"plant_db\", \"id\", \".*/556b2cf6dce2.*\"), \"container\", \"plant_node_exporter\", \"id\", \".*/cf2f881541d5.*\"), \"container\", \"$1\", \"name\", \"^/?([a-zA-Z0-9_-]+)$\")",
+          "legendFormat": "{{container}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Berapa Banyak Memori (RAM) yang Dikonsumsi Masing-Masing Container?",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "axisLabel": "Memory Usage (Bytes)",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(sum by (name, id) (container_memory_working_set_bytes{id=~\"/docker/[0-9a-f]{12,64}|/system.slice/docker-.*\"}), \"container\", \"$1\", \"id\", \"^(?:/docker/|.*/docker-)?([0-9a-f]{12}).*$\"), \"container\", \"plant_cadvisor\", \"id\", \".*/(06a80f25b7d0|a91e6a7ce2d8).*\"), \"container\", \"plant_frontend\", \"id\", \".*/453995ada206.*\"), \"container\", \"plant_backend\", \"id\", \".*/905b03d2749c.*\"), \"container\", \"plant_grafana\", \"id\", \".*/99402aa8be0c.*\"), \"container\", \"plant_prometheus\", \"id\", \".*/3bce829f4c46.*\"), \"container\", \"plant_db\", \"id\", \".*/556b2cf6dce2.*\"), \"container\", \"plant_node_exporter\", \"id\", \".*/cf2f881541d5.*\"), \"container\", \"$1\", \"name\", \"^/?([a-zA-Z0-9_-]+)$\")",
+          "legendFormat": "{{container}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Berapa Laju Permintaan (Request) per Detik yang Masuk ke Aplikasi Plant Collection?",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "axisLabel": "Requests per Second",
+            "drawStyle": "line",
+            "lineInterpolation": "smooth"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "sum by (method, path, status) (rate(plant_http_requests_total[5m]))",
+          "legendFormat": "{{method}} {{path}} (HTTP {{status}})",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Apakah Seluruh Layanan Pemantau dan Aplikasi Utama Sedang Hidup (UP)?",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "axisLabel": "Status Hidup (1 = UP, 0 = DOWN)",
+            "drawStyle": "line",
+            "lineInterpolation": "stepAfter"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "up",
+          "legendFormat": "{{job}} ({{instance}})",
+          "range": true,
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": [
+    "plant-collection",
+    "monitoring",
+    "p11"
+  ],
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m"
+    ]
+  },
+  "timezone": "browser",
+  "title": "Pemantauan Aplikasi Plant Collection (P11)",
+  "uid": "plant-collection-p11",
+  "version": 4
+}
