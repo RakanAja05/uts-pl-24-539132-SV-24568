@@ -3,9 +3,13 @@
 # Run with: docker compose up -d --build
 #
 # Services:
-#   db       → MySQL 8.0  (named volume, data persists across restarts)
-#   backend  → FrankenPHP / Laravel 13 (depends on db being healthy)
-#   frontend → Nginx 1.27 serving Vue SPA + /api reverse proxy to backend
+#   db            → MySQL 8.0  (named volume, data persists across restarts)
+#   backend       → FrankenPHP / Laravel 13 (depends on db being healthy)
+#   frontend      → Nginx 1.27 serving Vue SPA + /api reverse proxy to backend
+#   prometheus    → Prometheus v2.53.0 (Monitoring & Alerting server)
+#   grafana       → Grafana v11.1.0 (Metrics visualization & dashboards)
+#   cadvisor      → cAdvisor v0.49.1 (Container resource & performance metrics)
+#   node-exporter → Node Exporter v1.8.1 (Host hardware & OS metrics)
 #
 # All credentials and secrets are read from the .env file in this directory.
 # =============================================================================
@@ -117,9 +121,79 @@ services:
     networks:
       - plant_network
 
+  # ── Prometheus (Metrics Collection & Alerting) ────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: plant_prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - plant_network
+
+  # ── Grafana (Visualization & Dashboards) ───────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: plant_grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-RakanMonitoringP11!Strong}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./dashboard.json:/var/lib/grafana/dashboards/dashboard.json:ro
+    depends_on:
+      - prometheus
+    networks:
+      - plant_network
+
+  # ── cAdvisor (Container Resource & Performance Metrics) ───────────────────
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: plant_cadvisor
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - plant_network
+
+  # ── Node Exporter (Host Hardware & OS Metrics) ────────────────────────────
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: plant_node_exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    networks:
+      - plant_network
+
 # ── Named Volumes ─────────────────────────────────────────────────────────────
 volumes:
   db_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
     driver: local
 
 # ── Networks ──────────────────────────────────────────────────────────────────
